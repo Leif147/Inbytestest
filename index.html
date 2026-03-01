@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inbytestest – Bilverkstad</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    .traffic-btn {
+      min-height: 3rem;
+      min-width: 4.5rem;
+      border-radius: 0.75rem;
+      font-weight: 700;
+      transition: all 0.15s ease;
+      border: 2px solid transparent;
+    }
+
+    .traffic-btn[data-value='ok'] {
+      background-color: #14532d;
+      color: #bbf7d0;
+    }
+
+    .traffic-btn[data-value='note'] {
+      background-color: #713f12;
+      color: #fde68a;
+    }
+
+    .traffic-btn[data-value='defect'] {
+      background-color: #7f1d1d;
+      color: #fecaca;
+    }
+
+    .traffic-btn:not(.is-active) {
+      opacity: 0.5;
+    }
+
+    .traffic-btn.is-active {
+      transform: translateY(-1px);
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.25);
+      opacity: 1;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 9999px;
+      padding: 0.2rem 0.65rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .status-ok { background: #dcfce7; color: #166534; }
+    .status-note { background: #fef3c7; color: #92400e; }
+    .status-defect { background: #fee2e2; color: #991b1b; }
+    .status-unset { background: #e5e7eb; color: #374151; }
+
+    .form-input {
+      width: 100%;
+      border-radius: 0.75rem;
+      border: 1px solid #334155;
+      background: #0b1220;
+      color: #f8fafc;
+      padding: 0.8rem 0.9rem;
+      outline: none;
+    }
+
+    .form-input:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+
+    .section-card {
+      border: 1px solid #1f2937;
+      border-radius: 1rem;
+      background: #111827;
+      padding: 1rem;
+    }
+
+    @media (min-width: 768px) {
+      .section-card {
+        padding: 1.25rem;
+      }
+    }
+
+    #generatePdf:active {
+      transform: scale(0.98);
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+  <main class="max-w-6xl mx-auto px-3 py-4 md:px-6 md:py-8">
+    <header class="mb-6">
+      <div class="flex flex-col items-center text-center md:text-left md:flex-row md:items-center md:gap-4">
+        <div class="flex items-center gap-3">
+          <img src="Logo.png" alt="Autotjanst AB" class="h-9 md:h-10 w-auto" onerror="this.replaceWith(Object.assign(document.createElement('span'), {textContent: 'Autotjanst AB', className: 'text-lg font-extrabold tracking-tight text-gray-300'}));" />
+          <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">Inbytestest – Bilverkstad</h1>
+        </div>
+        <div class="mt-2 md:mt-0 md:ml-3 text-xs text-gray-300">
+          Dokument-ID: <span id="docIdDisplay" class="font-semibold text-gray-100">—</span>
+        </div>
+      </div>
+    </header>
+
+    <form id="tradeInForm" class="space-y-5">
+      <section class="section-card">
+        <h2 class="text-xl font-bold mb-4">1. Fordonsdata</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <label class="block">
+            <span class="text-sm text-gray-300">Märke</span>
+            <input class="form-input" name="brand" placeholder="Ex. Volvo" />
+          </label>
+          <label class="block">
+            <span class="text-sm text-gray-300">Modell</span>
+            <input class="form-input" name="model" placeholder="Ex. XC60" />
+          </label>
+          <label class="block">
+            <span class="text-sm text-gray-300">Reg-nr</span>
+            <input class="form-input" name="regnr" placeholder="ABC123" />
+          </label>
+          <label class="block">
+            <span class="text-sm text-gray-300">Mätarställning (km)</span>
+            <input type="number" class="form-input" name="mileage" placeholder="Ex. 12345" />
+          </label>
+          <label class="block">
+            <span class="text-sm text-gray-300">Drivmedelssystem & Bränsletyp</span>
+            <select class="form-input" name="fuelType">
+              <option value="">Välj</option>
+              <option>Bensin</option>
+              <option>Diesel</option>
+              <option>El</option>
+              <option>Hybrid (El/Bensin)</option>
+              <option>Hybrid (El/Diesel)</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="text-sm text-gray-300">Servicehistorik</span>
+            <select class="form-input" name="serviceHistory">
+              <option value="">Välj</option>
+              <option>Full servicehistorik</option>
+              <option>Digital servicebok</option>
+              <option>Delvis servicehistorik</option>
+              <option>Saknas</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="text-sm text-gray-300">Kamrem / Kamkedja</span>
+            <select class="form-input" name="timingBelt">
+              <option value="">Välj</option>
+              <option>Bytt enligt plan</option>
+              <option>Ej bytt / Oklart</option>
+              <option>Kamkedja</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="text-sm text-gray-300">Garanti</span>
+            <select class="form-input" name="warranty">
+              <option value="">Välj</option>
+              <option>Ja</option>
+              <option>Nej</option>
+              <option>Utökad garanti</option>
+            </select>
+          </label>
+          <label class="block md:col-span-3">
+            <span class="text-sm text-gray-300">Senaste service (datum)</span>
+            <input type="date" class="form-input" name="lastServiceDate" />
+          </label>
+          <label class="block md:col-span-3">
+            <span class="text-sm text-gray-300">Senaste service (mätarställning, km)</span>
+            <input type="number" class="form-input" name="lastServiceMileage" placeholder="Ex. 12000" />
+          </label>
+        </div>
+      </section>
+
+      <section class="section-card">
+        <h2 class="text-xl font-bold mb-4">2. Provkörning</h2>
+        <div class="space-y-3" id="testDriveChecks">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="testDriveEngineStart" data-label="Motor / start"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="testDriveGearboxClutch" data-label="Växellåda / koppling"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="testDriveNoiseVibration" data-label="Missljud / vibrationer"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="testDriveRoadHoldingSteering" data-label="Väghållning / styrning"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="testDriveParkingAssistCamera" data-label="Parkeringsassistans / backkamera"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="testDriveAdaptiveCruiseAssist" data-label="Adaptiv farthållare / förarassistans"></div>
+        </div>
+      </section>
+
+      <section class="section-card">
+        <h2 class="text-xl font-bold mb-4">3. Interiör & Elektronik</h2>
+        <div class="space-y-3" id="interiorChecks">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="felminnen" data-label="Felminnen (diagnos)"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="batteri" data-label="Batteri"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="infotainment" data-label="Infotainment / skärm"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="klimat" data-label="Klimatanläggning / AC"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="instrument" data-label="Instrumentpanel / varningslampor"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="elhissar" data-label="Elhissar / centrallås"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="komfortelektronik" data-label="Komfortelektronik"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="interiorCondition" data-label="Interiör skick / slitage"></div>
+        </div>
+      </section>
+
+      <section class="section-card">
+        <h2 class="text-xl font-bold mb-4">4. Exteriör & Belysning</h2>
+        <div class="space-y-3" id="exteriorChecks">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="body" data-label="Kaross / lack / rost"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="windshield" data-label="Vindruta / stenskott"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="torkareSpolning" data-label="Torkare & spolning"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="lights" data-label="Belysning (fram/bak)"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="extraljus" data-label="Extraljus"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="dragkrok" data-label="Dragkrok / dragkontakt"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="dorrarBaklucka" data-label="Dörrar / baklucka"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="tiresGeneral" data-label="Däck – allmänt skick"></div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+          <label class="block">
+            <span class="text-sm text-gray-300">Mönsterdjup VF (mm)</span>
+            <input type="number" step="0.1" class="form-input" name="tread_vf" placeholder="0.0" />
+          </label>
+          <label class="block">
+            <span class="text-sm text-gray-300">Mönsterdjup HF (mm)</span>
+            <input type="number" step="0.1" class="form-input" name="tread_hf" placeholder="0.0" />
+          </label>
+          <label class="block">
+            <span class="text-sm text-gray-300">Mönsterdjup VB (mm)</span>
+            <input type="number" step="0.1" class="form-input" name="tread_vb" placeholder="0.0" />
+          </label>
+          <label class="block">
+            <span class="text-sm text-gray-300">Mönsterdjup HB (mm)</span>
+            <input type="number" step="0.1" class="form-input" name="tread_hb" placeholder="0.0" />
+          </label>
+        </div>
+      </section>
+
+      <section class="section-card">
+        <h2 class="text-xl font-bold mb-4">5. Mekanisk Kontroll (Lyft)</h2>
+        <div class="space-y-3" id="mechanicalChecks">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="brakesFront" data-label="Bromsar fram / skick"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="brakesRear" data-label="Bromsar bak / skick"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="suspension" data-label="Fjädring / bussningar"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="steeringLinkArms" data-label="Styrning / länkarmar"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="leakage" data-label="Läckage (olja / kylvätska)"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="exhaust" data-label="Avgassystem / avgasdetaljer"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="underbody" data-label="Underrede / rost"></div>
+        </div>
+      </section>
+
+      <section class="section-card">
+        <h2 class="text-xl font-bold mb-4">6. Sammanfattning</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <label class="block md:col-span-2">
+            <span class="text-sm text-gray-300">Sammanfattande notering</span>
+            <textarea class="form-input min-h-28" name="summary" placeholder="Skriv en kort slutsats om fordonets skick..."></textarea>
+          </label>
+        </div>
+      </section>
+
+      <section class="pt-2 pb-8">
+        <button type="button" id="generatePdf" class="w-full md:w-auto bg-blue-600 hover:bg-blue-500 transition rounded-xl px-6 py-4 text-lg font-extrabold shadow-lg">
+          Generera Varudeklaration (PDF)
+        </button>
+      </section>
+    </form>
+  </main>
+
+  <script>
+    const STATUS_META = {
+      ok: { label: 'Normalt Skick', pillClass: 'status-ok' },
+      note: { label: 'Anmärkning', pillClass: 'status-note' },
+      defect: { label: 'Defekt', pillClass: 'status-defect' },
+      unset: { label: 'Ej vald', pillClass: 'status-unset' }
+    };
+
+    const LOGO_DATA_URL = '';
+
+    const AUTO_NOTE_DELIMITER = '\n\n-- Alla kommentarer --\n';
+
+    function createTrafficLightRow(container) {
+      const key = container.dataset.check;
+      const label = container.dataset.label;
+
+      const left = document.createElement('div');
+      left.className = 'font-semibold text-gray-100';
+      left.textContent = label;
+
+      const group = document.createElement('div');
+      group.className = 'flex flex-wrap gap-2';
+      group.dataset.key = key;
+
+      const options = [
+        { value: 'ok', text: 'Normalt Skick' },
+        { value: 'note', text: 'Anmärkning' },
+        { value: 'defect', text: 'Defekt' }
+      ];
+
+      options.forEach(option => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'traffic-btn px-4';
+        btn.dataset.value = option.value;
+        btn.textContent = option.text;
+        group.appendChild(btn);
+      });
+
+      const hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.name = `check_${key}`;
+      hidden.value = '';
+      group.appendChild(hidden);
+
+      const noteWrap = document.createElement('div');
+      noteWrap.className = 'w-full';
+      noteWrap.style.display = 'none';
+      const noteInput = document.createElement('input');
+      noteInput.type = 'text';
+      noteInput.name = `note_${key}`;
+      noteInput.placeholder = 'Skriv notering...';
+      noteInput.className = 'form-input mt-2';
+      noteInput.dataset.noteInput = key;
+      noteWrap.appendChild(noteInput);
+
+      container.appendChild(left);
+      container.appendChild(noteWrap);
+      container.appendChild(group);
+    }
+
+    function initTrafficLights() {
+      document.querySelectorAll('[data-check]').forEach(createTrafficLightRow);
+
+      document.addEventListener('click', event => {
+        const btn = event.target.closest('.traffic-btn');
+        if (!btn) return;
+
+        const group = btn.closest('[data-key]');
+        if (!group) return;
+
+        const isCurrentlyActive = btn.classList.contains('is-active');
+
+        group.querySelectorAll('.traffic-btn').forEach(item => item.classList.remove('is-active'));
+
+        const hidden = group.querySelector('input[type="hidden"]');
+        if (isCurrentlyActive) {
+          hidden.value = '';
+        } else {
+          btn.classList.add('is-active');
+          hidden.value = btn.dataset.value;
+        }
+
+        const key = group.dataset.key;
+        const noteInput = document.querySelector(`input[data-note-input="${key}"]`);
+        const noteWrap = noteInput?.parentElement;
+        if (noteWrap) {
+          if (!isCurrentlyActive && (btn.dataset.value === 'note' || btn.dataset.value === 'defect')) {
+            noteWrap.style.display = 'block';
+            noteInput.focus();
+          } else {
+            noteInput.value = '';
+            noteWrap.style.display = 'none';
+          }
+          updateSummaryNotes();
+        }
+      });
+
+      document.addEventListener('input', event => {
+        const input = event.target.closest('input[data-note-input]');
+        if (!input) return;
+        updateSummaryNotes();
+      });
+    }
+
+    function collectNotes() {
+      return Array.from(document.querySelectorAll('input[data-note-input]'))
+        .map(input => {
+          const key = input.dataset.noteInput;
+          const label = document.querySelector(`[data-check="${key}"]`)?.dataset.label || key;
+          const value = input.value.trim();
+          return value ? `${label}: ${value}` : '';
+        })
+        .filter(Boolean);
+    }
+
+    function updateSummaryNotes() {
+      const summaryEl = document.querySelector('textarea[name="summary"]');
+      if (!summaryEl) return;
+
+      const notes = collectNotes();
+      const current = summaryEl.value || '';
+      const manual = current.split(AUTO_NOTE_DELIMITER)[0].trim();
+
+      if (notes.length === 0) {
+        summaryEl.value = manual;
+        return;
+      }
+
+      const notesText = notes.map(note => `- ${note}`).join('\n');
+      summaryEl.value = (manual ? `${manual}${AUTO_NOTE_DELIMITER}` : AUTO_NOTE_DELIMITER) + notesText;
+    }
+
+    function getFormData() {
+      const form = document.getElementById('tradeInForm');
+      const fd = new FormData(form);
+      return Object.fromEntries(fd.entries());
+    }
+
+    function mapCheckRows() {
+      return Array.from(document.querySelectorAll('[data-check]')).map(node => {
+        const key = node.dataset.check;
+        const label = node.dataset.label;
+        const selected = document.querySelector(`input[name="check_${key}"]`)?.value || 'unset';
+        const note = document.querySelector(`input[name="note_${key}"]`)?.value?.trim() || '';
+        return { key, label, status: selected, note };
+      });
+    }
+
+    function fmt(value) {
+      if (value === undefined || value === null || value === '') return '—';
+      return String(value);
+    }
+
+    function generateDocumentId() {
+      const now = new Date();
+      const stamp = now.toISOString().replace(/[-:T.Z]/g, '').slice(2, 8);
+      const rand = Math.floor(Math.random() * 9000) + 1000;
+      return `VD-${stamp}-${rand}`;
+    }
+
+    function statusPill(status) {
+      const meta = STATUS_META[status] || STATUS_META.unset;
+      return `<span class="status-pill ${meta.pillClass}">${meta.label}</span>`;
+    }
+
+    function statusWithNoteText(item) {
+      const statusLabel = STATUS_META[item.status]?.label || STATUS_META.unset.label;
+      if (!item.note) return statusLabel;
+      return `${statusLabel}\nKommentar: ${item.note}`;
+    }
+
+    function buildPdfTemplate(data, checks, now, docId, logoSrc) {
+      const grouped = {
+        'Provkörning': checks.filter(c => ['testDriveEngineStart','testDriveGearboxClutch','testDriveNoiseVibration','testDriveRoadHoldingSteering','testDriveParkingAssistCamera','testDriveAdaptiveCruiseAssist'].includes(c.key)),
+        'Interiör & Elektronik': checks.filter(c => ['felminnen','batteri','infotainment','klimat','instrument','elhissar','komfortelektronik','interiorCondition'].includes(c.key)),
+        'Exteriör & Belysning': checks.filter(c => ['body','windshield','torkareSpolning','lights','extraljus','dragkrok','dorrarBaklucka'].includes(c.key)),
+        'Mekanisk Kontroll (Lyft)': checks.filter(c => ['brakesFront','brakesRear','suspension','steeringLinkArms','leakage','exhaust','underbody'].includes(c.key))
+      };
+      const tiresGeneralCheck = checks.find(c => c.key === 'tiresGeneral') || { status: 'unset', note: '' };
+
+      const logoMarkup = logoSrc
+        ? `<img src="${logoSrc}" alt="Autotjanst AB" style="max-height:44px; max-width:120px;" />`
+        : `<span style="font-size:12px; color:#6b7280; font-weight:700;">Autotjanst AB</span>`;
+
+      return `
+        <div style="font-family: Arial, sans-serif; color: #0f172a; background: #ffffff; padding: 24px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e2e8f0; padding-bottom:12px; margin-bottom:14px;">
+            <div>
+              <div style="font-size:22px; font-weight:800; color:#1d4ed8;">Autotjänst AB – Varudeklaration - Inbytestest</div>
+              <div style="font-size:12px; color:#334155; margin-top:4px;">Dokument-ID: ${docId}</div>
+              <div style="font-size:12px; color:#334155; margin-top:2px;">Reg-nr: ${fmt(data.regnr)}</div>
+              <div style="font-size:12px; color:#334155; margin-top:2px;">Datum: ${now}</div>
+            </div>
+            <div style="width:120px; height:44px; display:flex; align-items:center; justify-content:center;">
+              ${logoMarkup}
+            </div>
+          </div>
+
+          <div style="border:1px solid #e2e8f0; border-radius:10px; padding:12px; margin-bottom:12px;">
+            <div style="font-size:14px; font-weight:700; margin-bottom:6px;">Fordonsdata</div>
+            <table style="width:100%; border-collapse:collapse; font-size:12px;">
+              <tr><td style="padding:6px; border:1px solid #e2e8f0; width:30%;">Märke</td><td style="padding:6px; border:1px solid #e2e8f0;">${fmt(data.brand)}</td></tr>
+              <tr><td style="padding:6px; border:1px solid #e2e8f0;">Modell</td><td style="padding:6px; border:1px solid #e2e8f0;">${fmt(data.model)}</td></tr>
+              <tr><td style="padding:6px; border:1px solid #e2e8f0;">Reg-nr</td><td style="padding:6px; border:1px solid #e2e8f0;">${fmt(data.regnr)}</td></tr>
+              <tr><td style="padding:6px; border:1px solid #e2e8f0;">Mätarställning (km)</td><td style="padding:6px; border:1px solid #e2e8f0;">${fmt(data.mileage)}</td></tr>
+              <tr><td style="padding:6px; border:1px solid #e2e8f0;">Drivmedelssystem & Bränsletyp</td><td style="padding:6px; border:1px solid #e2e8f0;">${fmt(data.fuelType)}</td></tr>
+              <tr><td style="padding:6px; border:1px solid #e2e8f0;">Servicehistorik</td><td style="padding:6px; border:1px solid #e2e8f0;">${fmt(data.serviceHistory)}</td></tr>
+              <tr><td style="padding:6px; border:1px solid #e2e8f0;">Kamrem / Kamkedja</td><td style="padding:6px; border:1px solid #e2e8f0;">${fmt(data.timingBelt)}</td></tr>
+              <tr><td style="padding:6px; border:1px solid #e2e8f0;">Garanti</td><td style="padding:6px; border:1px solid #e2e8f0;">${fmt(data.warranty)}</td></tr>
+              <tr><td style="padding:6px; border:1px solid #e2e8f0;">Senaste service (datum)</td><td style="padding:6px; border:1px solid #e2e8f0;">${fmt(data.lastServiceDate)}</td></tr>
+              <tr><td style="padding:6px; border:1px solid #e2e8f0;">Senaste service (mätarställning, km)</td><td style="padding:6px; border:1px solid #e2e8f0;">${fmt(data.lastServiceMileage)}</td></tr>
+            </table>
+          </div>
+
+          ${Object.entries(grouped).map(([title, list]) => `
+            <div style="border:1px solid #e2e8f0; border-radius:10px; padding:12px; margin-bottom:12px;">
+              <div style="font-size:14px; font-weight:700; margin-bottom:6px;">${title}</div>
+              <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                ${list.map(item => `<tr><td style="padding:6px; border:1px solid #e2e8f0; width:70%;">${item.label}</td><td style="padding:6px; border:1px solid #e2e8f0;">${statusPill(item.status)}${item.note ? `<div style="margin-top:4px; color:#334155; font-size:11px;">Kommentar: ${fmt(item.note)}</div>` : ''}</td></tr>`).join('')}
+              </table>
+            </div>
+          `).join('')}
+
+          <div style="border:1px solid #e2e8f0; border-radius:10px; padding:12px; margin-bottom:12px;">
+            <div style="font-size:14px; font-weight:700; margin-bottom:6px;">Däck</div>
+            <table style="width:100%; border-collapse:collapse; font-size:12px;">
+              <tr><td style="padding:6px; border:1px solid #e2e8f0;">Mönsterdjup VF/HF/VB/HB (mm)</td><td style="padding:6px; border:1px solid #e2e8f0;">${fmt(data.tread_vf)} / ${fmt(data.tread_hf)} / ${fmt(data.tread_vb)} / ${fmt(data.tread_hb)}</td></tr>
+              <tr><td style="padding:6px; border:1px solid #e2e8f0;">Däck – allmänt skick</td><td style="padding:6px; border:1px solid #e2e8f0;">${statusPill(tiresGeneralCheck.status)}${tiresGeneralCheck.note ? `<div style="margin-top:4px; color:#334155; font-size:11px;">Kommentar: ${fmt(tiresGeneralCheck.note)}</div>` : ''}</td></tr>
+            </table>
+          </div>
+
+          <div style="border:1px solid #e2e8f0; border-radius:10px; padding:12px;">
+            <div style="font-size:14px; font-weight:700; margin-bottom:6px;">Sammanfattning</div>
+            <table style="width:100%; border-collapse:collapse; font-size:12px;">
+              <tr><td style="padding:6px; border:1px solid #e2e8f0; width:30%;">Notering</td><td style="padding:6px; border:1px solid #e2e8f0;">${fmt(data.summary)}</td></tr>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    async function generatePdf() {
+      const data = getFormData();
+      const checks = mapCheckRows();
+      const missingNotes = checks.filter(item => (item.status === 'note' || item.status === 'defect') && !item.note);
+      if (missingNotes.length > 0) {
+        const labels = missingNotes.map(item => `• ${item.label}`).join('\n');
+        alert(`Fyll i notering för följande:\n${labels}`);
+        return;
+      }
+      const now = new Date().toLocaleString('sv-SE');
+      const docId = generateDocumentId();
+      const docIdDisplay = document.getElementById('docIdDisplay');
+      if (docIdDisplay) {
+        docIdDisplay.textContent = docId;
+      }
+
+      const generateBtn = document.getElementById('generatePdf');
+      const safeReg = (data.regnr || 'fordon').replace(/\s+/g, '_');
+      const filename = `varudeklaration_${safeReg}_${docId}.pdf`;
+
+      try {
+        generateBtn.disabled = true;
+        generateBtn.textContent = 'Genererar PDF...';
+
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+          throw new Error('jsPDF saknas. Ladda om sidan och försök igen.');
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 12;
+        const contentWidth = pageWidth - margin * 2;
+        const labelWidth = 62;
+        const valueWidth = contentWidth - labelWidth;
+        const lineHeight = 4.6;
+        let y = margin;
+
+        const ensurePage = (needed = 10) => {
+          if (y + needed > pageHeight - margin) {
+            doc.addPage();
+            y = margin;
+          }
+        };
+
+        const drawSectionHeader = title => {
+          ensurePage(12);
+          doc.setDrawColor(203, 213, 225);
+          doc.setFillColor(248, 250, 252);
+          doc.rect(margin, y, contentWidth, 8, 'FD');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(11);
+          doc.setTextColor(15, 23, 42);
+          doc.text(title, margin + 3, y + 5.2);
+          y += 8;
+        };
+
+        const drawRows = rows => {
+          doc.setFontSize(9.5);
+          rows.forEach(([label, value]) => {
+            const left = doc.splitTextToSize(fmt(label), labelWidth - 4);
+            const right = doc.splitTextToSize(fmt(value), valueWidth - 4);
+            const lines = Math.max(left.length, right.length);
+            const rowHeight = Math.max(7, lines * lineHeight + 2);
+            ensurePage(rowHeight + 1);
+
+            doc.setDrawColor(226, 232, 240);
+            doc.rect(margin, y, contentWidth, rowHeight);
+            doc.line(margin + labelWidth, y, margin + labelWidth, y + rowHeight);
+
+            doc.setTextColor(51, 65, 85);
+            doc.setFont('helvetica', 'bold');
+            doc.text(left, margin + 2, y + 4.6);
+
+            doc.setTextColor(15, 23, 42);
+            doc.setFont('helvetica', 'normal');
+            doc.text(right, margin + labelWidth + 2, y + 4.6);
+
+            y += rowHeight;
+          });
+
+          y += 4;
+        };
+
+        const grouped = {
+          'Provkörning': checks.filter(c => ['testDriveEngineStart', 'testDriveGearboxClutch', 'testDriveNoiseVibration', 'testDriveRoadHoldingSteering', 'testDriveParkingAssistCamera', 'testDriveAdaptiveCruiseAssist'].includes(c.key)),
+          'Interiör & Elektronik': checks.filter(c => ['felminnen', 'batteri', 'infotainment', 'klimat', 'instrument', 'elhissar', 'komfortelektronik', 'interiorCondition'].includes(c.key)),
+          'Exteriör & Belysning': checks.filter(c => ['body', 'windshield', 'torkareSpolning', 'lights', 'extraljus', 'dragkrok', 'dorrarBaklucka'].includes(c.key)),
+          'Mekanisk Kontroll (Lyft)': checks.filter(c => ['brakesFront', 'brakesRear', 'suspension', 'steeringLinkArms', 'leakage', 'exhaust', 'underbody'].includes(c.key))
+        };
+        const tiresGeneralCheck = checks.find(c => c.key === 'tiresGeneral') || { status: 'unset', note: '' };
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(16);
+        doc.setTextColor(30, 64, 175);
+        doc.text('Autotjänst AB – Varudeklaration - Inbytestest', margin, y + 2);
+        y += 8;
+
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(51, 65, 85);
+        doc.setFontSize(9.5);
+        doc.text(`Dokument-ID: ${docId}`, margin, y);
+        doc.text(`Reg-nr: ${fmt(data.regnr)}`, margin + 68, y);
+        doc.text(`Datum: ${now}`, margin + 120, y);
+        y += 6;
+
+        doc.setDrawColor(203, 213, 225);
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 5;
+
+        drawSectionHeader('Fordonsdata');
+        drawRows([
+          ['Märke', data.brand],
+          ['Modell', data.model],
+          ['Reg-nr', data.regnr],
+          ['Mätarställning (km)', data.mileage],
+          ['Drivmedelssystem & Bränsletyp', data.fuelType],
+          ['Servicehistorik', data.serviceHistory],
+          ['Kamrem / Kamkedja', data.timingBelt],
+          ['Garanti', data.warranty],
+          ['Senaste service (datum)', data.lastServiceDate],
+          ['Senaste service (mätarställning, km)', data.lastServiceMileage]
+        ]);
+
+        Object.entries(grouped).forEach(([title, list]) => {
+          drawSectionHeader(title);
+          drawRows(list.map(item => [item.label, statusWithNoteText(item)]));
+        });
+
+        drawSectionHeader('Däck');
+        drawRows([
+          ['Mönsterdjup VF/HF/VB/HB (mm)', `${fmt(data.tread_vf)} / ${fmt(data.tread_hf)} / ${fmt(data.tread_vb)} / ${fmt(data.tread_hb)}`],
+          ['Däck – allmänt skick', statusWithNoteText(tiresGeneralCheck)]
+        ]);
+
+        drawSectionHeader('Sammanfattning');
+        drawRows([
+          ['Notering', data.summary]
+        ]);
+
+        doc.save(filename);
+      } catch (error) {
+        alert(error.message || 'Kunde inte skapa PDF. Försök igen.');
+      } finally {
+        generateBtn.disabled = false;
+        generateBtn.textContent = 'Generera Varudeklaration (PDF)';
+      }
+    }
+
+    document.getElementById('generatePdf').addEventListener('click', generatePdf);
+
+    initTrafficLights();
+  </script>
+</body>
+</html>
