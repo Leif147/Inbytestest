@@ -95,7 +95,7 @@
     <header class="mb-6">
       <div class="flex flex-col items-center text-center md:text-left md:flex-row md:items-center md:gap-4">
         <div class="flex items-center gap-3">
-          <img src="logo.png" alt="Autotjanst AB" class="h-9 md:h-10 w-auto" onerror="this.replaceWith(Object.assign(document.createElement('span'), {textContent: 'Autotjanst AB', className: 'text-lg font-extrabold tracking-tight text-gray-300'}));" />
+          <img src="Logo.png" alt="Autotjanst AB" class="h-9 md:h-10 w-auto" onerror="this.replaceWith(Object.assign(document.createElement('span'), {textContent: 'Autotjanst AB', className: 'text-lg font-extrabold tracking-tight text-gray-300'}));" />
           <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">Inbytestest – Bilverkstad</h1>
         </div>
         <div class="mt-2 md:mt-0 md:ml-3 text-xs text-gray-300">
@@ -190,7 +190,8 @@
         <h2 class="text-xl font-bold mb-4">3. Interiör & Elektronik</h2>
         <div class="space-y-3" id="interiorChecks">
           <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="felminnen" data-label="Felminnen (diagnos)"></div>
-          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="batteri" data-label="Batteri"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="hvBatteri" data-label="HV-Batteri" id="hvBatteriRow" style="display:none"></div>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="batteri" data-label="12V Batteri"></div>
           <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="infotainment" data-label="Infotainment / skärm"></div>
           <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="klimat" data-label="Klimatanläggning / AC"></div>
           <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2" data-check="instrument" data-label="Instrumentpanel / varningslampor"></div>
@@ -404,7 +405,7 @@
     }
 
     function mapCheckRows() {
-      return Array.from(document.querySelectorAll('[data-check]')).map(node => {
+      return Array.from(document.querySelectorAll('[data-check]')).filter(node => node.style.display !== 'none').map(node => {
         const key = node.dataset.check;
         const label = node.dataset.label;
         const selected = document.querySelector(`input[name="check_${key}"]`)?.value || 'unset';
@@ -437,9 +438,10 @@
     }
 
     function buildPdfTemplate(data, checks, now, docId, logoSrc) {
+      const isHybridOrEl = data.fuelType && (data.fuelType.includes('Hybrid') || data.fuelType === 'El');
       const grouped = {
         'Provkörning': checks.filter(c => ['testDriveEngineStart','testDriveGearboxClutch','testDriveNoiseVibration','testDriveRoadHoldingSteering','testDriveParkingAssistCamera','testDriveAdaptiveCruiseAssist'].includes(c.key)),
-        'Interiör & Elektronik': checks.filter(c => ['felminnen','batteri','infotainment','klimat','instrument','elhissar','komfortelektronik','interiorCondition'].includes(c.key)),
+        'Interiör & Elektronik': checks.filter(c => ['felminnen',...(isHybridOrEl ? ['hvBatteri'] : []),'batteri','infotainment','klimat','instrument','elhissar','komfortelektronik','interiorCondition'].includes(c.key)),
         'Exteriör & Belysning': checks.filter(c => ['body','windshield','torkareSpolning','lights','extraljus','dragkrok','dorrarBaklucka'].includes(c.key)),
         'Mekanisk Kontroll (Lyft)': checks.filter(c => ['brakesFront','brakesRear','suspension','steeringLinkArms','leakage','exhaust','underbody'].includes(c.key))
       };
@@ -592,9 +594,10 @@
           y += 4;
         };
 
+        const isHybridOrEl = data.fuelType && (data.fuelType.includes('Hybrid') || data.fuelType === 'El');
         const grouped = {
           'Provkörning': checks.filter(c => ['testDriveEngineStart', 'testDriveGearboxClutch', 'testDriveNoiseVibration', 'testDriveRoadHoldingSteering', 'testDriveParkingAssistCamera', 'testDriveAdaptiveCruiseAssist'].includes(c.key)),
-          'Interiör & Elektronik': checks.filter(c => ['felminnen', 'batteri', 'infotainment', 'klimat', 'instrument', 'elhissar', 'komfortelektronik', 'interiorCondition'].includes(c.key)),
+          'Interiör & Elektronik': checks.filter(c => ['felminnen', ...(isHybridOrEl ? ['hvBatteri'] : []), 'batteri', 'infotainment', 'klimat', 'instrument', 'elhissar', 'komfortelektronik', 'interiorCondition'].includes(c.key)),
           'Exteriör & Belysning': checks.filter(c => ['body', 'windshield', 'torkareSpolning', 'lights', 'extraljus', 'dragkrok', 'dorrarBaklucka'].includes(c.key)),
           'Mekanisk Kontroll (Lyft)': checks.filter(c => ['brakesFront', 'brakesRear', 'suspension', 'steeringLinkArms', 'leakage', 'exhaust', 'underbody'].includes(c.key))
         };
@@ -659,8 +662,16 @@
 
     document.getElementById('generatePdf').addEventListener('click', generatePdf);
 
+    function updateHvBatteriVisibility() {
+      const fuelType = document.querySelector('select[name="fuelType"]').value;
+      const isHybridOrEl = fuelType.includes('Hybrid') || fuelType === 'El';
+      document.getElementById('hvBatteriRow').style.display = isHybridOrEl ? '' : 'none';
+    }
+
+    document.querySelector('select[name="fuelType"]').addEventListener('change', updateHvBatteriVisibility);
+
     initTrafficLights();
+    updateHvBatteriVisibility();
   </script>
 </body>
 </html>
-
